@@ -1,5 +1,4 @@
 // Canvas
-let canv;
 let canv_size = 800;
 
 // Tiles
@@ -17,7 +16,7 @@ let color_high = "#ff1b37";
 let color_low = "#ff33d2";
 
 // Brush settings
-let brush_length_bottom = 1.5;
+let brush_length_base = 1.5;
 let brush_length_top_multiplier = 0.8;
 let brush_weight = 5;
 let brush_vibration = 1;
@@ -27,20 +26,19 @@ let angle_start = 90;
 let angle_end = -90;
 
 // Area / field settings
-let base_area_density = 0.005;          // bottom area noise scale
-let base_angle_density = 0.01;          // bottom field noise scale
-let top_vs_bottom_density = 2.0;        // multiplier for top areas vs bottom
-let top_vs_bottom_angle = 2.0;          // multiplier for top field vs bottom
-
+let area_noise_scale = 0.005;           // bottom layer noise scale
+let angle_noise_scale = 0.01;           // bottom layer field noise scale
+let area_noise_multiplier = 2.0;        // top vs bottom noise multiplier
+let angle_noise_multiplier = 2.0;       // top vs bottom angle multiplier
 
 // Draw toggles
 let show_tiles = false;
-let show_bottom_areas = true;
-let show_top_areas = true;
+let show_bottom_layer = true;
+let show_top_layer = true;
 
 // Areas
-let bottom_areas;
-let top_areas;
+let bottom_layer_map;
+let top_layer_map;
 
 function preload() {
   // Placeholder to ensure p5 runs this before setup; useful if assets are added.
@@ -123,10 +121,10 @@ function brush_field(name, noiseScale, angle_start, angle_end) {
 
 // Initialize brush fields
 function initializeBrushFields() {
-  brush.field("bottomField");
-  brush.field("topField");
-  brush_field("bottomField", base_angle_density, angle_start, angle_end);
-  brush_field("topField", base_angle_density * top_vs_bottom_angle, angle_start, angle_end);
+  brush.field("bottomFlowField");
+  brush.field("topFlowField");
+  brush_field("bottomFlowField", angle_noise_scale, angle_start, angle_end);
+  brush_field("topFlowField", angle_noise_scale * angle_noise_multiplier, angle_start, angle_end);
 }
 
 function reseedNoise() {
@@ -152,13 +150,13 @@ function generateSketch() {
     tile_width = width / tiles;
 
     // Generate main areas
-    bottom_areas = area_gen(width, height, 0, base_area_density);
+    bottom_layer_map = area_gen(width, height, 0, area_noise_scale);
 
     // Generate sub areas
-    top_areas = area_gen(width, height, 0, base_area_density * top_vs_bottom_density);
+    top_layer_map = area_gen(width, height, 0, area_noise_scale * area_noise_multiplier);
 
-    let bottom_area;
-    let top_area;
+    let bottom_layer_value;
+    let top_layer_value;
     for (let y = 0; y < tiles; y++) {
       for (let x = 0; x < tiles; x++) {
 
@@ -177,37 +175,37 @@ function generateSketch() {
         }
 
         // Detect main areas
-        if (bottom_areas[int(x * tile_width)][int(y * tile_width)] == 1) { bottom_area = 1; }
-        else if (bottom_areas[int(x * tile_width)][int(y * tile_width)] == 2) { bottom_area = 2; }
-        else if (bottom_areas[int(x * tile_width)][int(y * tile_width)] == 3) { bottom_area = 3; }
-        else { bottom_area = 0; }
+        if (bottom_layer_map[int(x * tile_width)][int(y * tile_width)] == 1) { bottom_layer_value = 1; }
+        else if (bottom_layer_map[int(x * tile_width)][int(y * tile_width)] == 2) { bottom_layer_value = 2; }
+        else if (bottom_layer_map[int(x * tile_width)][int(y * tile_width)] == 3) { bottom_layer_value = 3; }
+        else { bottom_layer_value = 0; }
 
         // Detect sub areas
-        if (top_areas[int(x * tile_width)][int(y * tile_width)] == 1) { top_area = 1; }
-        else if (top_areas[int(x * tile_width)][int(y * tile_width)] == 2) { top_area = 2; }
-        else if (top_areas[int(x * tile_width)][int(y * tile_width)] == 3) { top_area = 3; }
-        else { top_area = 0; }
+        if (top_layer_map[int(x * tile_width)][int(y * tile_width)] == 1) { top_layer_value = 1; }
+        else if (top_layer_map[int(x * tile_width)][int(y * tile_width)] == 2) { top_layer_value = 2; }
+        else if (top_layer_map[int(x * tile_width)][int(y * tile_width)] == 3) { top_layer_value = 3; }
+        else { top_layer_value = 0; }
 
         // Draw main areas
-        if (show_bottom_areas) {
-          if (bottom_area == 1) { brush.stroke(color_low); brush.pick("b1"); }
-          else if (bottom_area == 2) { brush.stroke(color_high); brush.pick("b2"); }
-          else if (bottom_area == 3) { brush.stroke(color_high); brush.pick("b1"); }
+        if (show_bottom_layer) {
+          if (bottom_layer_value == 1) { brush.stroke(color_low); brush.pick("b1"); }
+          else if (bottom_layer_value == 2) { brush.stroke(color_high); brush.pick("b2"); }
+          else if (bottom_layer_value == 3) { brush.stroke(color_high); brush.pick("b1"); }
           else { brush.stroke(bg_color); brush.pick("b2"); }
 
-          brush.field("bottomField");
-          brush.flowLine(start_x - tile_width, start_y, brush_length_bottom * tile_width, 0);
+          brush.field("bottomFlowField");
+          brush.flowLine(start_x - tile_width, start_y, brush_length_base * tile_width, 0);
         }
 
         // Draw sub areas
-        if (show_top_areas) {
-          if (top_area == 1) { brush.stroke(color_high); brush.pick("b2"); }
-          else if (top_area == 2) { brush.stroke(color_high); brush.pick("b1"); }
-          else if (top_area == 3) { brush.stroke(color_low); brush.pick("b2"); }
+        if (show_top_layer) {
+          if (top_layer_value == 1) { brush.stroke(color_high); brush.pick("b2"); }
+          else if (top_layer_value == 2) { brush.stroke(color_high); brush.pick("b1"); }
+          else if (top_layer_value == 3) { brush.stroke(color_low); brush.pick("b2"); }
           else { brush.stroke(bg_color); brush.pick("b1"); }
 
-          brush.field("topField");
-          let brush_length = random(0.5, 2) * brush_length_bottom * brush_length_top_multiplier;
+          brush.field("topFlowField");
+          let brush_length = random(0.5, 2) * brush_length_base * brush_length_top_multiplier;
           brush.flowLine(start_x - tile_width, start_y, brush_length * tile_width, 0);
         }
       }
@@ -218,8 +216,8 @@ function applyParams(params = {}) {
   if (typeof params.tiles === "number") {
     tiles = params.tiles;
   }
-  if (typeof params.brushLengthBottom === "number") {
-    brush_length_bottom = params.brushLengthBottom;
+  if (typeof params.brushLengthBase === "number") {
+    brush_length_base = params.brushLengthBase;
   }
   if (typeof params.brushLengthTopMultiplier === "number") {
     brush_length_top_multiplier = params.brushLengthTopMultiplier;
@@ -227,26 +225,26 @@ function applyParams(params = {}) {
   if (typeof params.brushWeight === "number") {
     brush_weight = params.brushWeight;
   }
-  if (typeof params.areaDensityBase === "number") {
-    base_area_density = params.areaDensityBase;
+  if (typeof params.areaNoiseScale === "number") {
+    area_noise_scale = params.areaNoiseScale;
   }
-  if (typeof params.angleDensityBase === "number") {
-    base_angle_density = params.angleDensityBase;
+  if (typeof params.angleNoiseScale === "number") {
+    angle_noise_scale = params.angleNoiseScale;
   }
-  if (typeof params.topVsBottomDensity === "number") {
-    top_vs_bottom_density = params.topVsBottomDensity;
+  if (typeof params.areaNoiseMultiplier === "number") {
+    area_noise_multiplier = params.areaNoiseMultiplier;
   }
-  if (typeof params.topVsBottomAngle === "number") {
-    top_vs_bottom_angle = params.topVsBottomAngle;
+  if (typeof params.angleNoiseMultiplier === "number") {
+    angle_noise_multiplier = params.angleNoiseMultiplier;
   }
   if (typeof params.showTiles === "boolean") {
     show_tiles = params.showTiles;
   }
-  if (typeof params.showBottomAreas === "boolean") {
-    show_bottom_areas = params.showBottomAreas;
+  if (typeof params.showBottomLayer === "boolean") {
+    show_bottom_layer = params.showBottomLayer;
   }
-  if (typeof params.showTopAreas === "boolean") {
-    show_top_areas = params.showTopAreas;
+  if (typeof params.showTopLayer === "boolean") {
+    show_top_layer = params.showTopLayer;
   }
   configureBrushes();
   initializeBrushFields();
@@ -263,14 +261,13 @@ window.regenerateSketch = regenerateSketch;
 
 function setup() {
   // Set canvas
-  canv = createCanvas(canv_size, canv_size, WEBGL);
+  window.canv = createCanvas(canv_size, canv_size, WEBGL);
   pixelDensity(2), angleMode(DEGREES);
   renderBlankCanvas();
   configureBrushes();
   initializeBrushFields();
   reseedNoise();
   setTimeout(generateSketch, 0);
-  // saveFrames(canv, "endo.png");
 }
 
 

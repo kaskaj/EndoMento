@@ -10,13 +10,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const bottomCheckbox = createCheckboxControl({
     label: "Bottom Layer",
-    id: "show-bottom-areas",
+    id: "show-bottom-layer",
     checked: true
   });
 
   const topCheckbox = createCheckboxControl({
     label: "Top Layer",
-    id: "show-top-areas",
+    id: "show-top-layer",
     checked: true
   });
 
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   panel.appendChild(toggleRow);
 
   const tileControl = createSliderControl({
-    label: "Tile Count",
+    label: "Number of Tiles",
     id: "tiles-slider",
     min: 10,
     max: 200,
@@ -36,9 +36,9 @@ document.addEventListener("DOMContentLoaded", () => {
     value: 100
   });
 
-  const brushLengthBottomControl = createSliderControl({
-    label: "Bottom Brush Length",
-    id: "brush-length-bottom",
+  const brushLengthBaseControl = createSliderControl({
+    label: "Brush Length",
+    id: "brush-length-base",
     min: 0.5,
     max: 2.5,
     step: 0.1,
@@ -63,36 +63,36 @@ document.addEventListener("DOMContentLoaded", () => {
     value: 5
   });
 
-  const areaDensityControl = createSliderControl({
-    label: "Area Density (Base)",
-    id: "area-density-base",
+  const areaNoiseScaleControl = createSliderControl({
+    label: "Area Noise Scale",
+    id: "area-noise-scale",
     min: 0.001,
     max: 0.05,
     step: 0.001,
     value: 0.005
   });
 
-  const angleDensityControl = createSliderControl({
-    label: "Angle Density (Base)",
-    id: "angle-density-base",
+  const angleNoiseScaleControl = createSliderControl({
+    label: "Angle Noise Scale",
+    id: "angle-noise-scale",
     min: 0.001,
     max: 0.1,
     step: 0.001,
     value: 0.01
   });
 
-  const topBottomDensityControl = createSliderControl({
-    label: "Top/Bottom Density Multiplier",
-    id: "top-bottom-density",
+  const areaNoiseMultiplierControl = createSliderControl({
+    label: "Top/Bottom Multiplier",
+    id: "area-noise-multiplier",
     min: 0.5,
     max: 2,
     step: 0.05,
     value: 2
   });
 
-  const topBottomAngleControl = createSliderControl({
-    label: "Top/Bottom Angle Multiplier",
-    id: "top-bottom-angle",
+  const angleNoiseMultiplierControl = createSliderControl({
+    label: "Top/Bottom Multiplier",
+    id: "angle-noise-multiplier",
     min: 0.5,
     max: 2,
     step: 0.05,
@@ -101,20 +101,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   panel.appendChild(tileControl.container);
 
-  const areaNoiseSection = createSection("Area Noise Pattern", [
-    areaDensityControl.container,
-    topBottomDensityControl.container
+  const areaNoiseSection = createSection("Color Areas", [
+    areaNoiseScaleControl.container,
+    areaNoiseMultiplierControl.container
   ]);
 
-  const angleNoiseSection = createSection("Angle Noise Pattern", [
-    angleDensityControl.container,
-    topBottomAngleControl.container
+  const angleNoiseSection = createSection("Angle Areas", [
+    angleNoiseScaleControl.container,
+    angleNoiseMultiplierControl.container
   ]);
 
   const brushSection = createSection("Brush", [
-    brushLengthBottomControl.container,
-    brushLengthTopMultiplierControl.container,
-    brushWeightControl.container
+    brushLengthBaseControl.container,
+    brushWeightControl.container,
+    brushLengthTopMultiplierControl.container
   ]);
 
   panel.appendChild(areaNoiseSection);
@@ -126,36 +126,46 @@ document.addEventListener("DOMContentLoaded", () => {
   generateButton.textContent = "Generate";
   generateButton.addEventListener("click", () => {
     const tiles = parseInt(tileControl.input.value, 10);
-    const brushLengthBottom = parseFloat(brushLengthBottomControl.input.value);
+    const brushLengthBase = parseFloat(brushLengthBaseControl.input.value);
     const brushLengthTopMultiplier = parseFloat(brushLengthTopMultiplierControl.input.value);
     const brushWeight = parseFloat(brushWeightControl.input.value);
-    const areaDensityBase = parseFloat(areaDensityControl.input.value);
-    const angleDensityBase = parseFloat(angleDensityControl.input.value);
-    const topVsBottomDensity = parseFloat(topBottomDensityControl.input.value);
-    const topVsBottomAngle = parseFloat(topBottomAngleControl.input.value);
+    const areaNoiseScale = parseFloat(areaNoiseScaleControl.input.value);
+    const angleNoiseScale = parseFloat(angleNoiseScaleControl.input.value);
+    const areaNoiseMultiplier = parseFloat(areaNoiseMultiplierControl.input.value);
+    const angleNoiseMultiplier = parseFloat(angleNoiseMultiplierControl.input.value);
     const showTiles = tileCheckbox.input.checked;
-    const showBottomAreas = bottomCheckbox.input.checked;
-    const showTopAreas = topCheckbox.input.checked;
+    const showBottomLayer = bottomCheckbox.input.checked;
+    const showTopLayer = topCheckbox.input.checked;
     if (typeof window.regenerateSketch === "function") {
       window.regenerateSketch({
         tiles,
-        brushLengthBottom,
+        brushLengthBase,
         brushLengthTopMultiplier,
         brushWeight,
-        areaDensityBase,
-        angleDensityBase,
-        topVsBottomDensity,
-        topVsBottomAngle,
+        areaNoiseScale,
+        angleNoiseScale,
+        areaNoiseMultiplier,
+        angleNoiseMultiplier,
         showTiles,
-        showBottomAreas,
-        showTopAreas
+        showBottomLayer,
+        showTopLayer
       });
+    }
+  });
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.textContent = "Save";
+  saveButton.addEventListener("click", () => {
+    if (typeof window.saveFrames === "function" && typeof window.canv !== "undefined") {
+      window.saveFrames(canv, "endo.png");
     }
   });
 
   const buttonRow = document.createElement("div");
   buttonRow.className = "button-row";
   buttonRow.appendChild(generateButton);
+  buttonRow.appendChild(saveButton);
   panel.appendChild(buttonRow);
 
   document.body.appendChild(panel);
