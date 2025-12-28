@@ -116,3 +116,13 @@ button:hover {
 button:active {
   transform: translateY(1px);
 }
+
+button.secondary {
+  background: #fff;
+  color: #111;
+  border-color: #111;
+}
+
+button.secondary:hover {
+  background: #f2f2f2;
+}

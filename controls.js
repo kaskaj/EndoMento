@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
     label: "Brush Length",
     id: "brush-length-base",
     min: 0.5,
-    max: 2.5,
+    max: 5,
     step: 0.1,
     value: 1.5
   });
@@ -159,7 +159,24 @@ document.addEventListener("DOMContentLoaded", () => {
   panel.appendChild(angleNoiseSection);
   panel.appendChild(brushSection);
 
+  const doeLink = document.createElement("button");
+  doeLink.type = "button";
+  doeLink.textContent = "Open Design Explorer";
+  doeLink.className = "secondary";
+  doeLink.addEventListener("click", () => {
+    window.location.href = "doe.html";
+  });
+  panel.appendChild(doeLink);
+
   document.body.appendChild(panel);
+
+  // Apply DoE selection if present
+  const saved = loadDoeSelection();
+  if (saved) {
+    applyParamsToControls(saved);
+    triggerGenerate(saved);
+    localStorage.removeItem("doeSelection");
+  }
 });
 
 function randomizeSliders(controls) {
@@ -177,33 +194,34 @@ function randomizeSliders(controls) {
   });
 }
 
-function triggerGenerate() {
-  const tiles = parseInt(document.getElementById("tiles-slider").value, 10);
-  const brushLengthBase = parseFloat(document.getElementById("brush-length-base").value);
-  const brushLengthTopMultiplier = parseFloat(document.getElementById("brush-length-top-multiplier").value);
-  const brushWeight = parseFloat(document.getElementById("brush-weight").value);
-  const areaNoiseScale = parseFloat(document.getElementById("area-noise-scale").value);
-  const angleNoiseScale = parseFloat(document.getElementById("angle-noise-scale").value);
-  const areaNoiseMultiplier = parseFloat(document.getElementById("area-noise-multiplier").value);
-  const angleNoiseMultiplier = parseFloat(document.getElementById("angle-noise-multiplier").value);
-  const showTiles = document.getElementById("show-tiles").checked;
-  const showBottomLayer = document.getElementById("show-bottom-layer").checked;
-  const showTopLayer = document.getElementById("show-top-layer").checked;
+function triggerGenerate(paramsOverride) {
+  const params = paramsOverride || {
+    tiles: parseInt(document.getElementById("tiles-slider").value, 10),
+    brushLengthBase: parseFloat(document.getElementById("brush-length-base").value),
+    brushLengthTopMultiplier: parseFloat(document.getElementById("brush-length-top-multiplier").value),
+    brushWeight: parseFloat(document.getElementById("brush-weight").value),
+    areaNoiseScale: parseFloat(document.getElementById("area-noise-scale").value),
+    angleNoiseScale: parseFloat(document.getElementById("angle-noise-scale").value),
+    areaNoiseMultiplier: parseFloat(document.getElementById("area-noise-multiplier").value),
+    angleNoiseMultiplier: parseFloat(document.getElementById("angle-noise-multiplier").value),
+    showTiles: document.getElementById("show-tiles").checked,
+    showBottomLayer: document.getElementById("show-bottom-layer").checked,
+    showTopLayer: document.getElementById("show-top-layer").checked
+  };
 
   if (typeof window.regenerateSketch === "function") {
-    window.regenerateSketch({
-      tiles,
-      brushLengthBase,
-      brushLengthTopMultiplier,
-      brushWeight,
-      areaNoiseScale,
-      angleNoiseScale,
-      areaNoiseMultiplier,
-      angleNoiseMultiplier,
-      showTiles,
-      showBottomLayer,
-      showTopLayer
-    });
+    window.regenerateSketch(params);
+  }
+}
+
+function loadDoeSelection() {
+  try {
+    const raw = localStorage.getItem("doeSelection");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn("Failed to parse doeSelection", e);
+    return null;
   }
 }
 

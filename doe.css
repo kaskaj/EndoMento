@@ -1,0 +1,105 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  background: #f0f0f0;
+  color: #111;
+}
+
+#app {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+#status {
+  flex: 1;
+  font-size: 14px;
+  color: #444;
+}
+
+#actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  padding: 10px 14px;
+  border: 1px solid #111;
+  border-radius: 6px;
+  background: #111;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+button:disabled {
+  background: #777;
+  border-color: #777;
+  cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+  background: #222;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.final-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  grid-auto-rows: 1fr;
+}
+
+.card {
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.card.selected {
+  outline: 3px solid #111;
+  outline-offset: -2px;
+}
+
+.placeholder {
+  width: 300px;
+  height: 300px;
+  display: grid;
+  place-items: center;
+  color: #555;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+}
