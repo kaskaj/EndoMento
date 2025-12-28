@@ -1,0 +1,106 @@
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  background: #f5f5f5;
+  box-sizing: border-box;
+}
+
+canvas {
+  display: block;
+  flex-shrink: 0;
+  order: 1;
+}
+
+#controls-panel {
+  order: 2;
+  min-width: 220px;
+  padding: 12px;
+  border: 1px solid #dcdcdc;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+#controls-panel h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.control-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #555;
+}
+
+.control-group {
+  margin-bottom: 16px;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.control-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.control-value {
+  font-variant-numeric: tabular-nums;
+  color: #222;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.button-row button {
+  width: 100%;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #2f80ed;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+button:hover {
+  background: #1c6dd0;
+}
+
+button:active {
+  transform: translateY(1px);
+}
