@@ -40,6 +40,12 @@ let show_top_layer = true;
 let bottom_layer_map;
 let top_layer_map;
 
+// Progressive rendering state
+let render_queue = [];
+let render_index = 0;
+let tiles_per_frame = 0;
+let is_rendering = false;
+
 function preload() {
   // Placeholder to ensure p5 runs this before setup; useful if assets are added.
 }
@@ -119,6 +125,63 @@ function brush_field(name, noiseScale, angle_start, angle_end) {
 
 }
 
+function buildRenderQueue() {
+  const queue = [];
+  for (let y = 0; y < tiles; y++) {
+    for (let x = 0; x < tiles; x++) {
+      const start_x = random(x * tile_width, x * tile_width + tile_width);
+      const start_y = random(y * tile_width, y * tile_width + tile_width);
+      const bottom_area_value = bottom_layer_map[int(x * tile_width)][int(y * tile_width)];
+      const top_area_value = top_layer_map[int(x * tile_width)][int(y * tile_width)];
+      const top_length_factor = random(0.5, 2);
+      queue.push({
+        x,
+        y,
+        start_x,
+        start_y,
+        bottom_area_value,
+        top_area_value,
+        top_length_factor
+      });
+    }
+  }
+  return queue;
+}
+
+function drawTile(job) {
+  const { x, y, start_x, start_y, bottom_area_value, top_area_value, top_length_factor } = job;
+
+  if (show_tiles) {
+    push();
+    noFill();
+    stroke(220);
+    strokeWeight(1);
+    rect(x * tile_width, y * tile_width, tile_width, tile_width);
+    pop();
+  }
+
+  if (show_bottom_layer) {
+    if (bottom_area_value === 1) { brush.stroke(color_low); brush.pick("b1"); }
+    else if (bottom_area_value === 2) { brush.stroke(color_high); brush.pick("b2"); }
+    else if (bottom_area_value === 3) { brush.stroke(color_high); brush.pick("b1"); }
+    else { brush.stroke(bg_color); brush.pick("b2"); }
+
+    brush.field("bottomFlowField");
+    brush.flowLine(start_x - tile_width, start_y, brush_length_base * tile_width, 0);
+  }
+
+  if (show_top_layer) {
+    if (top_area_value === 1) { brush.stroke(color_high); brush.pick("b2"); }
+    else if (top_area_value === 2) { brush.stroke(color_high); brush.pick("b1"); }
+    else if (top_area_value === 3) { brush.stroke(color_low); brush.pick("b2"); }
+    else { brush.stroke(bg_color); brush.pick("b1"); }
+
+    brush.field("topFlowField");
+    const brush_length = top_length_factor * brush_length_base * brush_length_top_multiplier * tile_width;
+    brush.flowLine(start_x - tile_width, start_y, brush_length, 0);
+  }
+}
+
 // Initialize brush fields
 function initializeBrushFields() {
   brush.field("bottomFlowField");
@@ -155,61 +218,12 @@ function generateSketch() {
     // Generate sub areas
     top_layer_map = area_gen(width, height, 0, area_noise_scale * area_noise_multiplier);
 
-    let bottom_layer_value;
-    let top_layer_value;
-    for (let y = 0; y < tiles; y++) {
-      for (let x = 0; x < tiles; x++) {
-
-        // Select random position
-        let start_x = random(x * tile_width, x * tile_width + tile_width);
-        let start_y = random(y * tile_width, y * tile_width + tile_width);
-
-        // Draw tiles
-        if (show_tiles) {
-          push();
-          noFill();
-          stroke(220);
-          strokeWeight(1);
-          rect(x * tile_width, y * tile_width, tile_width, tile_width);
-          pop();
-        }
-
-        // Detect main areas
-        if (bottom_layer_map[int(x * tile_width)][int(y * tile_width)] == 1) { bottom_layer_value = 1; }
-        else if (bottom_layer_map[int(x * tile_width)][int(y * tile_width)] == 2) { bottom_layer_value = 2; }
-        else if (bottom_layer_map[int(x * tile_width)][int(y * tile_width)] == 3) { bottom_layer_value = 3; }
-        else { bottom_layer_value = 0; }
-
-        // Detect sub areas
-        if (top_layer_map[int(x * tile_width)][int(y * tile_width)] == 1) { top_layer_value = 1; }
-        else if (top_layer_map[int(x * tile_width)][int(y * tile_width)] == 2) { top_layer_value = 2; }
-        else if (top_layer_map[int(x * tile_width)][int(y * tile_width)] == 3) { top_layer_value = 3; }
-        else { top_layer_value = 0; }
-
-        // Draw main areas
-        if (show_bottom_layer) {
-          if (bottom_layer_value == 1) { brush.stroke(color_low); brush.pick("b1"); }
-          else if (bottom_layer_value == 2) { brush.stroke(color_high); brush.pick("b2"); }
-          else if (bottom_layer_value == 3) { brush.stroke(color_high); brush.pick("b1"); }
-          else { brush.stroke(bg_color); brush.pick("b2"); }
-
-          brush.field("bottomFlowField");
-          brush.flowLine(start_x - tile_width, start_y, brush_length_base * tile_width, 0);
-        }
-
-        // Draw sub areas
-        if (show_top_layer) {
-          if (top_layer_value == 1) { brush.stroke(color_high); brush.pick("b2"); }
-          else if (top_layer_value == 2) { brush.stroke(color_high); brush.pick("b1"); }
-          else if (top_layer_value == 3) { brush.stroke(color_low); brush.pick("b2"); }
-          else { brush.stroke(bg_color); brush.pick("b1"); }
-
-          brush.field("topFlowField");
-          let brush_length = random(0.5, 2) * brush_length_base * brush_length_top_multiplier;
-          brush.flowLine(start_x - tile_width, start_y, brush_length * tile_width, 0);
-        }
-      }
-    }
+    // Prepare rendering queue to draw progressively
+    render_queue = buildRenderQueue();
+    render_index = 0;
+    const total_tiles = render_queue.length;
+    tiles_per_frame = Math.max(1, Math.floor(total_tiles / 80));
+    is_rendering = true;
 }
 
 function applyParams(params = {}) {
@@ -272,4 +286,20 @@ function setup() {
 
 
 function draw() {
+  // Ensure coordinate system stays anchored to top-left for WEBGL each frame
+  resetMatrix();
+  translate(-width / 2, -height / 2);
+
+  if (!is_rendering || render_queue.length === 0) {
+    return;
+  }
+  const remaining = render_queue.length - render_index;
+  const batch = Math.min(tiles_per_frame, remaining);
+  for (let i = 0; i < batch; i++) {
+    drawTile(render_queue[render_index + i]);
+  }
+  render_index += batch;
+  if (render_index >= render_queue.length) {
+    is_rendering = false;
+  }
 }
