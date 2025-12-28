@@ -17,8 +17,8 @@ let color_high = "#ff1b37";
 let color_low = "#ff33d2";
 
 // Brush settings
-let brush_length_main = 1.5;
-let brush_length_sub = 1.2;
+let brush_length_bottom = 1.5;
+let brush_length_top_multiplier = 0.8;
 let brush_weight = 5;
 let brush_vibration = 1;
 
@@ -27,20 +27,20 @@ let angle_start = 90;
 let angle_end = -90;
 
 // Area / field settings
-let area_density = 0.005;        // main area noise scale
-let angle_density = 0.01;        // main field noise scale
-let sub_vs_main_density = 2.0;   // multiplier for sub areas vs main
-let sub_vs_main_angle = 2.0;     // multiplier for sub field vs main
+let base_area_density = 0.005;          // bottom area noise scale
+let base_angle_density = 0.01;          // bottom field noise scale
+let top_vs_bottom_density = 2.0;        // multiplier for top areas vs bottom
+let top_vs_bottom_angle = 2.0;          // multiplier for top field vs bottom
 
 
 // Draw toggles
 let show_tiles = false;
-let show_main_areas = true;
-let show_sub_areas = true;
+let show_bottom_areas = true;
+let show_top_areas = true;
 
 // Areas
-let main_areas;
-let sub_areas;
+let bottom_areas;
+let top_areas;
 
 function preload() {
   // Placeholder to ensure p5 runs this before setup; useful if assets are added.
@@ -123,10 +123,10 @@ function brush_field(name, noiseScale, angle_start, angle_end) {
 
 // Initialize brush fields
 function initializeBrushFields() {
-  brush.field("myfield1");
-  brush.field("myfield2");
-  brush_field("myfield1", angle_density, angle_start, angle_end);
-  brush_field("myfield2", angle_density * sub_vs_main_angle, angle_start, angle_end);
+  brush.field("bottomField");
+  brush.field("topField");
+  brush_field("bottomField", base_angle_density, angle_start, angle_end);
+  brush_field("topField", base_angle_density * top_vs_bottom_angle, angle_start, angle_end);
 }
 
 function reseedNoise() {
@@ -152,13 +152,13 @@ function generateSketch() {
     tile_width = width / tiles;
 
     // Generate main areas
-    main_areas = area_gen(width, height, 0, area_density);
+    bottom_areas = area_gen(width, height, 0, base_area_density);
 
     // Generate sub areas
-    sub_areas = area_gen(width, height, 0, area_density * sub_vs_main_density);
+    top_areas = area_gen(width, height, 0, base_area_density * top_vs_bottom_density);
 
-    let area;
-    let sub_area;
+    let bottom_area;
+    let top_area;
     for (let y = 0; y < tiles; y++) {
       for (let x = 0; x < tiles; x++) {
 
@@ -177,37 +177,37 @@ function generateSketch() {
         }
 
         // Detect main areas
-        if (main_areas[int(x * tile_width)][int(y * tile_width)] == 1) { area = 1; }
-        else if (main_areas[int(x * tile_width)][int(y * tile_width)] == 2) { area = 2; }
-        else if (main_areas[int(x * tile_width)][int(y * tile_width)] == 3) { area = 3; }
-        else { area = 0; }
+        if (bottom_areas[int(x * tile_width)][int(y * tile_width)] == 1) { bottom_area = 1; }
+        else if (bottom_areas[int(x * tile_width)][int(y * tile_width)] == 2) { bottom_area = 2; }
+        else if (bottom_areas[int(x * tile_width)][int(y * tile_width)] == 3) { bottom_area = 3; }
+        else { bottom_area = 0; }
 
         // Detect sub areas
-        if (sub_areas[int(x * tile_width)][int(y * tile_width)] == 1) { sub_area = 1; }
-        else if (sub_areas[int(x * tile_width)][int(y * tile_width)] == 2) { sub_area = 2; }
-        else if (sub_areas[int(x * tile_width)][int(y * tile_width)] == 3) { sub_area = 3; }
-        else { sub_area = 0; }
+        if (top_areas[int(x * tile_width)][int(y * tile_width)] == 1) { top_area = 1; }
+        else if (top_areas[int(x * tile_width)][int(y * tile_width)] == 2) { top_area = 2; }
+        else if (top_areas[int(x * tile_width)][int(y * tile_width)] == 3) { top_area = 3; }
+        else { top_area = 0; }
 
         // Draw main areas
-        if (show_main_areas) {
-          if (area == 1) { brush.stroke(color_low); brush.pick("b1"); }
-          else if (area == 2) { brush.stroke(color_high); brush.pick("b2"); }
-          else if (area == 3) { brush.stroke(color_high); brush.pick("b1"); }
+        if (show_bottom_areas) {
+          if (bottom_area == 1) { brush.stroke(color_low); brush.pick("b1"); }
+          else if (bottom_area == 2) { brush.stroke(color_high); brush.pick("b2"); }
+          else if (bottom_area == 3) { brush.stroke(color_high); brush.pick("b1"); }
           else { brush.stroke(bg_color); brush.pick("b2"); }
 
-          brush.field("myfield1");
-          brush.flowLine(start_x - tile_width, start_y, brush_length_main * tile_width, 0);
+          brush.field("bottomField");
+          brush.flowLine(start_x - tile_width, start_y, brush_length_bottom * tile_width, 0);
         }
 
         // Draw sub areas
-        if (show_sub_areas) {
-          if (sub_area == 1) { brush.stroke(color_high); brush.pick("b2"); }
-          else if (sub_area == 2) { brush.stroke(color_high); brush.pick("b1"); }
-          else if (sub_area == 3) { brush.stroke(color_low); brush.pick("b2"); }
+        if (show_top_areas) {
+          if (top_area == 1) { brush.stroke(color_high); brush.pick("b2"); }
+          else if (top_area == 2) { brush.stroke(color_high); brush.pick("b1"); }
+          else if (top_area == 3) { brush.stroke(color_low); brush.pick("b2"); }
           else { brush.stroke(bg_color); brush.pick("b1"); }
 
-          brush.field("myfield2");
-          let brush_length = random(0.5, 2) * brush_length_sub;
+          brush.field("topField");
+          let brush_length = random(0.5, 2) * brush_length_bottom * brush_length_top_multiplier;
           brush.flowLine(start_x - tile_width, start_y, brush_length * tile_width, 0);
         }
       }
@@ -218,43 +218,38 @@ function applyParams(params = {}) {
   if (typeof params.tiles === "number") {
     tiles = params.tiles;
   }
-  if (typeof params.brushLengthMain === "number") {
-    brush_length_main = params.brushLengthMain;
+  if (typeof params.brushLengthBottom === "number") {
+    brush_length_bottom = params.brushLengthBottom;
   }
-  if (typeof params.brushLengthSub === "number") {
-    brush_length_sub = params.brushLengthSub;
+  if (typeof params.brushLengthTopMultiplier === "number") {
+    brush_length_top_multiplier = params.brushLengthTopMultiplier;
   }
   if (typeof params.brushWeight === "number") {
     brush_weight = params.brushWeight;
   }
-  if (typeof params.areaDensity === "number") {
-    area_density = params.areaDensity;
+  if (typeof params.areaDensityBase === "number") {
+    base_area_density = params.areaDensityBase;
   }
-  if (typeof params.angleDensity === "number") {
-    angle_density = params.angleDensity;
+  if (typeof params.angleDensityBase === "number") {
+    base_angle_density = params.angleDensityBase;
   }
-  if (typeof params.subVsMainDensity === "number") {
-    sub_vs_main_density = params.subVsMainDensity;
+  if (typeof params.topVsBottomDensity === "number") {
+    top_vs_bottom_density = params.topVsBottomDensity;
   }
-  if (typeof params.subVsMainAngle === "number") {
-    sub_vs_main_angle = params.subVsMainAngle;
+  if (typeof params.topVsBottomAngle === "number") {
+    top_vs_bottom_angle = params.topVsBottomAngle;
   }
   if (typeof params.showTiles === "boolean") {
     show_tiles = params.showTiles;
   }
-  if (typeof params.showMainAreas === "boolean") {
-    show_main_areas = params.showMainAreas;
+  if (typeof params.showBottomAreas === "boolean") {
+    show_bottom_areas = params.showBottomAreas;
   }
-  if (typeof params.showSubAreas === "boolean") {
-    show_sub_areas = params.showSubAreas;
+  if (typeof params.showTopAreas === "boolean") {
+    show_top_areas = params.showTopAreas;
   }
   configureBrushes();
   initializeBrushFields();
-}
-
-function refreshSketch(params = {}) {
-  applyParams(params);
-  generateSketch();
 }
 
 function regenerateSketch(params = {}) {
@@ -263,8 +258,7 @@ function regenerateSketch(params = {}) {
   generateSketch();
 }
 
-// Expose refresh for controls
-window.refreshSketch = refreshSketch;
+// Expose regenerate for controls
 window.regenerateSketch = regenerateSketch;
 
 function setup() {
