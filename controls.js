@@ -187,6 +187,10 @@ document.addEventListener("DOMContentLoaded", () => {
     brushWeightControl.container
   ]);
 
+  const layerSection = createSection("Layer control", [
+    toggleRow
+  ]);
+
   const generateButton = document.createElement("button");
   generateButton.type = "button";
   generateButton.textContent = "Generate";
@@ -231,12 +235,12 @@ document.addEventListener("DOMContentLoaded", () => {
   buttonRow.appendChild(randomizeButton);
   buttonRow.appendChild(saveButton);
   panel.appendChild(buttonRow);
-  panel.appendChild(toggleRow);
   panel.appendChild(pixelDensityControl.container);
   panel.appendChild(tileControl.container);
   panel.appendChild(areaNoiseSection);
   panel.appendChild(angleNoiseSection);
   panel.appendChild(brushSection);
+  panel.appendChild(layerSection);
 
   document.body.appendChild(panel);
 

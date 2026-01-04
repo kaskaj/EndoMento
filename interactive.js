@@ -78,7 +78,7 @@ function configureBrushes() {
     definition: 1, // 0 - 1
     quality: 1,
     opacity: 100,
-    spacing: 0.01,
+    spacing: 0.1,
     blend: false,
     pressure: {
       type: "standard",
@@ -198,7 +198,7 @@ function drawTile(job) {
 
   if (show_top_layer) {
     if (top_area_value === 1) { brush.stroke(color_high); brush.pick("b2"); }
-    else if (top_area_value === 3) { brush.stroke(color_low); brush.pick("b1"); }
+    else if (top_area_value === 2) { brush.stroke(color_low); brush.pick("b1"); }
     else { brush.stroke(bg_color); brush.pick("b1"); }
 
     brush.field("topFlowField");
