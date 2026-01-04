@@ -1,14 +1,14 @@
 // Canvas
 let canv_size = 800;
+let pixel_density = 2;
 
 // Tiles
 let tiles = 100;
 let tile_width;
 
-// Section limits
+// Color Section limits
 let sec_high = 0.65;
-let sec_mid = 0.45;
-let sec_low = 0.28;
+let sec_low = 0.4;
 
 // Colors
 let bg_color = "#fff9daff";
@@ -27,18 +27,18 @@ let angle_start = 90;
 let angle_end = -90;
 
 // Area / field settings
-let area_noise_scale = 0.005;           // bottom layer noise scale
-let angle_noise_scale = 0.01;           // bottom layer field noise scale
-let area_noise_multiplier = 2.0;        // top vs bottom noise multiplier
-let angle_noise_multiplier = 2.0;       // top vs bottom angle multiplier
-let brush_length_noise_scale = 0.005;   // length noise scale (shared)
+let color_noise_scale = 0.005;          // bottom layer color noise scale
+let angle_noise_scale = 0.01;           // bottom layer angle noise scale
+let brush_length_noise_scale = 0.005;   // bottom layer brush length noise scale
+let color_noise_multiplier = 2.0;       // top layer noise scale multiplier
+let angle_noise_multiplier = 2.0;       // top layer noise scale multiplier
 
 // Draw toggles
 let show_tiles = false;
 let show_bottom_layer = true;
 let show_top_layer = true;
 
-// Areas
+// Area maps
 let bottom_layer_map;
 let top_layer_map;
 let brush_length_map;
@@ -50,7 +50,7 @@ let tiles_per_frame = 0;
 let is_rendering = false;
 
 function preload() {
-  // Placeholder to ensure p5 runs this before setup; useful if assets are added.
+  // Placeholder to ensure p5 runs this before setup
 }
 
 // Configure brushes
@@ -101,9 +101,8 @@ function area_gen(w, h, t, noiseScale) {
       // Generate noise
       let noise_raw = noise_gen(x, y, t, noiseScale);
       // Section noise
-      if (noise_raw >= sec_high) { areas[x][y] = 3; }
-      else if (noise_raw < sec_high && noise_raw > sec_mid) { areas[x][y] = 2; }
-      else if (noise_raw <= sec_mid && noise_raw > sec_low) { areas[x][y] = 1; }
+      if (noise_raw >= sec_high) { areas[x][y] = 2; }
+      else if (noise_raw < sec_high && noise_raw > sec_low) { areas[x][y] = 1; }
       else { areas[x][y] = 0; }
     }
   }
@@ -121,6 +120,7 @@ function length_gen(w, h, t, noiseScale) {
   return lengths;
 }
 
+// Get minimum and maximum brush length
 function getBrushLengthBounds() {
   const base = Math.max(0, brush_length_base);
   const range = Math.max(1, brush_length_range);
@@ -129,7 +129,7 @@ function getBrushLengthBounds() {
   return { min, max };
 }
 
-// Generate brush areas
+// Generate brush field (angle areas)
 function brush_field(name, noiseScale, angle_start, angle_end) {
   brush.addField(name, function (t, field) {
     const cols = field.length;
@@ -147,6 +147,7 @@ function brush_field(name, noiseScale, angle_start, angle_end) {
 
 }
 
+// Render queue
 function buildRenderQueue() {
   const queue = [];
   const { min: length_min, max: length_max } = getBrushLengthBounds();
@@ -189,7 +190,6 @@ function drawTile(job) {
   if (show_bottom_layer) {
     if (bottom_area_value === 1) { brush.stroke(color_low); brush.pick("b1"); }
     else if (bottom_area_value === 2) { brush.stroke(color_high); brush.pick("b2"); }
-    else if (bottom_area_value === 3) { brush.stroke(color_high); brush.pick("b1"); }
     else { brush.stroke(bg_color); brush.pick("b2"); }
 
     brush.field("bottomFlowField");
@@ -198,8 +198,7 @@ function drawTile(job) {
 
   if (show_top_layer) {
     if (top_area_value === 1) { brush.stroke(color_high); brush.pick("b2"); }
-    else if (top_area_value === 2) { brush.stroke(color_high); brush.pick("b1"); }
-    else if (top_area_value === 3) { brush.stroke(color_low); brush.pick("b2"); }
+    else if (top_area_value === 3) { brush.stroke(color_low); brush.pick("b1"); }
     else { brush.stroke(bg_color); brush.pick("b1"); }
 
     brush.field("topFlowField");
@@ -216,13 +215,14 @@ function initializeBrushFields() {
   brush_field("topFlowField", angle_noise_scale * angle_noise_multiplier, angle_start, angle_end);
 }
 
+// Reseed noise (Generate)
 function reseedNoise() {
   const seed = Math.floor(Math.random() * 1_000_000_000);
   noiseSeed(seed);
   randomSeed(seed + 1);
 }
 
-// Blank canvas
+// Blank canvas (show before rendering)
 function renderBlankCanvas() {
   resetMatrix();
   translate(-width / 2, -height / 2);
@@ -239,10 +239,10 @@ function generateSketch() {
     tile_width = width / tiles;
 
     // Generate bottom areas
-    bottom_layer_map = area_gen(width, height, 0, area_noise_scale);
+    bottom_layer_map = area_gen(width, height, 0, color_noise_scale);
 
     // Generate top areas
-    top_layer_map = area_gen(width, height, 0, area_noise_scale * area_noise_multiplier);
+    top_layer_map = area_gen(width, height, 0, color_noise_scale * color_noise_multiplier);
 
     // Generate brush length area (shared across layers)
     brush_length_map = length_gen(width, height, 0, brush_length_noise_scale);
@@ -258,6 +258,9 @@ function generateSketch() {
 function applyParams(params = {}) {
   if (typeof params.tiles === "number") {
     tiles = params.tiles;
+  }
+  if (typeof params.pixelDensityValue === "number") {
+    pixel_density = constrain(params.pixelDensityValue, 1, 4);
   }
   const hasNewBase = typeof params.brushLengthBase === "number";
   const hasNewRange = typeof params.brushLengthRange === "number";
@@ -288,7 +291,7 @@ function applyParams(params = {}) {
     brush_vibration = params.brushVibration;
   }
   if (typeof params.areaNoiseScale === "number") {
-    area_noise_scale = params.areaNoiseScale;
+    color_noise_scale = params.areaNoiseScale;
   }
   if (typeof params.angleNoiseScale === "number") {
     angle_noise_scale = params.angleNoiseScale;
@@ -297,7 +300,7 @@ function applyParams(params = {}) {
     brush_length_noise_scale = params.brushLengthNoiseScale;
   }
   if (typeof params.areaNoiseMultiplier === "number") {
-    area_noise_multiplier = params.areaNoiseMultiplier;
+    color_noise_multiplier = params.areaNoiseMultiplier;
   }
   if (typeof params.angleNoiseMultiplier === "number") {
     angle_noise_multiplier = params.angleNoiseMultiplier;
@@ -311,12 +314,19 @@ function applyParams(params = {}) {
   if (typeof params.showTopLayer === "boolean") {
     show_top_layer = params.showTopLayer;
   }
+  if (typeof params.secHigh === "number") {
+    sec_high = constrain(params.secHigh, 0.5, 1);
+  }
+  if (typeof params.secLow === "number") {
+    sec_low = constrain(params.secLow, 0, 0.49);
+  }
   configureBrushes();
   initializeBrushFields();
 }
 
 function regenerateSketch(params = {}) {
   applyParams(params);
+  pixelDensity(pixel_density);
   reseedNoise();
   generateSketch();
 }
@@ -324,10 +334,34 @@ function regenerateSketch(params = {}) {
 // Expose regenerate for controls
 window.regenerateSketch = regenerateSketch;
 
+// Update layer visibility without changing the generated pattern
+function updateVisibility(params = {}) {
+  if (typeof params.showTiles === "boolean") {
+    show_tiles = params.showTiles;
+  }
+  if (typeof params.showBottomLayer === "boolean") {
+    show_bottom_layer = params.showBottomLayer;
+  }
+  if (typeof params.showTopLayer === "boolean") {
+    show_top_layer = params.showTopLayer;
+  }
+
+  // Re-render the existing queue so the same pattern is shown with new visibility
+  if (!render_queue || render_queue.length === 0) return;
+  renderBlankCanvas();
+  render_index = 0;
+  tiles_per_frame = Math.max(1, Math.floor(render_queue.length / 80));
+  is_rendering = true;
+}
+
+// Expose visibility update for controls
+window.updateVisibility = updateVisibility;
+
 function setup() {
   // Set canvas
+  pixelDensity(pixel_density);
   window.canv = createCanvas(canv_size, canv_size, WEBGL);
-  pixelDensity(2), angleMode(DEGREES);
+  angleMode(DEGREES);
   renderBlankCanvas();
   configureBrushes();
   initializeBrushFields();

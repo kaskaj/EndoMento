@@ -20,6 +20,20 @@ document.addEventListener("DOMContentLoaded", () => {
     checked: true
   });
 
+  const syncVisibility = () => {
+    if (typeof window.updateVisibility === "function") {
+      window.updateVisibility({
+        showTiles: tileCheckbox.input.checked,
+        showBottomLayer: bottomCheckbox.input.checked,
+        showTopLayer: topCheckbox.input.checked
+      });
+    }
+  };
+
+  [tileCheckbox.input, bottomCheckbox.input, topCheckbox.input].forEach(input => {
+    input.addEventListener("change", syncVisibility);
+  });
+
   const toggleRow = document.createElement("div");
   toggleRow.className = "toggle-row";
   toggleRow.appendChild(tileCheckbox.container);
@@ -33,6 +47,15 @@ document.addEventListener("DOMContentLoaded", () => {
     max: 200,
     step: 1,
     value: 100
+  });
+
+  const pixelDensityControl = createSliderControl({
+    label: "Pixel Density",
+    id: "pixel-density",
+    min: 1,
+    max: 4,
+    step: 1,
+    value: 2
   });
 
   const brushLengthBaseControl = createSliderControl({
@@ -80,13 +103,31 @@ document.addEventListener("DOMContentLoaded", () => {
     value: 5
   });
 
-  const areaNoiseScaleControl = createSliderControl({
+  const colorNoiseScaleControl = createSliderControl({
     label: "Noise Scale",
-    id: "area-noise-scale",
+    id: "color_noise_scale",
     min: 0.001,
     max: 0.05,
     step: 0.001,
     value: 0.005
+  });
+
+  const colorSecLowControl = createSliderControl({
+    label: "Low Threshold",
+    id: "color-sec-low",
+    min: 0,
+    max: 0.49,
+    step: 0.01,
+    value: 0.28
+  });
+
+  const colorSecHighControl = createSliderControl({
+    label: "High Threshold",
+    id: "color-sec-high",
+    min: 0.5,
+    max: 1,
+    step: 0.01,
+    value: 0.65
   });
 
   const angleNoiseScaleControl = createSliderControl({
@@ -107,9 +148,9 @@ document.addEventListener("DOMContentLoaded", () => {
     value: 0.005
   });
 
-  const areaNoiseMultiplierControl = createSliderControl({
+  const colorNoiseMultiplierControl = createSliderControl({
     label: "Top/Bottom Multiplier",
-    id: "area-noise-multiplier",
+    id: "color-noise-multiplier",
     min: 0.5,
     max: 2,
     step: 0.05,
@@ -126,8 +167,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   const areaNoiseSection = createSection("Color Areas", [
-    areaNoiseScaleControl.container,
-    areaNoiseMultiplierControl.container
+    colorNoiseScaleControl.container,
+    colorNoiseMultiplierControl.container,
+    colorSecLowControl.container,
+    colorSecHighControl.container
   ]);
 
   const angleNoiseSection = createSection("Angle Areas", [
@@ -171,10 +214,12 @@ document.addEventListener("DOMContentLoaded", () => {
       brushVibrationControl,
       brushLengthTopMultiplierControl,
       brushWeightControl,
-      areaNoiseScaleControl,
+      colorNoiseScaleControl,
+      colorSecLowControl,
+      colorSecHighControl,
       angleNoiseScaleControl,
       lengthNoiseScaleControl,
-      areaNoiseMultiplierControl,
+      colorNoiseMultiplierControl,
       angleNoiseMultiplierControl
     ]);
     triggerGenerate();
@@ -187,19 +232,11 @@ document.addEventListener("DOMContentLoaded", () => {
   buttonRow.appendChild(saveButton);
   panel.appendChild(buttonRow);
   panel.appendChild(toggleRow);
+  panel.appendChild(pixelDensityControl.container);
   panel.appendChild(tileControl.container);
   panel.appendChild(areaNoiseSection);
   panel.appendChild(angleNoiseSection);
   panel.appendChild(brushSection);
-
-  const doeLink = document.createElement("button");
-  doeLink.type = "button";
-  doeLink.textContent = "Open Design Explorer";
-  doeLink.className = "secondary";
-  doeLink.addEventListener("click", () => {
-    window.location.href = "doe.html";
-  });
-  panel.appendChild(doeLink);
 
   document.body.appendChild(panel);
 
@@ -230,15 +267,18 @@ function randomizeSliders(controls) {
 function triggerGenerate(paramsOverride) {
   const params = paramsOverride || {
     tiles: parseInt(document.getElementById("tiles-slider").value, 10),
+    pixelDensityValue: parseInt(document.getElementById("pixel-density").value, 10),
     brushLengthBase: parseFloat(document.getElementById("brush-length-base").value),
     brushLengthRange: parseFloat(document.getElementById("brush-length-range").value),
     brushVibration: parseFloat(document.getElementById("brush-vibration").value),
     brushLengthTopMultiplier: parseFloat(document.getElementById("brush-length-top-multiplier").value),
     brushWeight: parseFloat(document.getElementById("brush-weight").value),
-    areaNoiseScale: parseFloat(document.getElementById("area-noise-scale").value),
+    areaNoiseScale: parseFloat(document.getElementById("color_noise_scale").value),
+    secLow: parseFloat(document.getElementById("color-sec-low").value),
+    secHigh: parseFloat(document.getElementById("color-sec-high").value),
     angleNoiseScale: parseFloat(document.getElementById("angle-noise-scale").value),
     brushLengthNoiseScale: parseFloat(document.getElementById("length-noise-scale").value),
-    areaNoiseMultiplier: parseFloat(document.getElementById("area-noise-multiplier").value),
+    colorNoiseMultiplier: parseFloat(document.getElementById("color-noise-multiplier").value),
     angleNoiseMultiplier: parseFloat(document.getElementById("angle-noise-multiplier").value),
     showTiles: document.getElementById("show-tiles").checked,
     showBottomLayer: document.getElementById("show-bottom-layer").checked,
@@ -294,13 +334,16 @@ function applyParamsToControls(params) {
   setSliderValue("brush-length-base", baseLen);
   setSliderValue("brush-length-range", rangeLen);
   setSliderValue("tiles-slider", params.tiles);
+  setSliderValue("pixel-density", params.pixelDensityValue);
   setSliderValue("brush-length-top-multiplier", params.brushLengthTopMultiplier);
   setSliderValue("brush-weight", params.brushWeight);
   setSliderValue("brush-vibration", params.brushVibration);
-  setSliderValue("area-noise-scale", params.areaNoiseScale);
+  setSliderValue("color_noise_scale", params.areaNoiseScale);
+  setSliderValue("color-sec-low", params.secLow);
+  setSliderValue("color-sec-high", params.secHigh);
   setSliderValue("angle-noise-scale", params.angleNoiseScale);
   setSliderValue("length-noise-scale", params.brushLengthNoiseScale);
-  setSliderValue("area-noise-multiplier", params.areaNoiseMultiplier);
+  setSliderValue("color-noise-multiplier", params.colorNoiseMultiplier);
   setSliderValue("angle-noise-multiplier", params.angleNoiseMultiplier);
   setCheckboxValue("show-tiles", params.showTiles);
   setCheckboxValue("show-bottom-layer", params.showBottomLayer);
