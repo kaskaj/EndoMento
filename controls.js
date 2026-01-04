@@ -36,19 +36,37 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   const brushLengthBaseControl = createSliderControl({
-    label: "Brush Length",
+    label: "Base Length",
     id: "brush-length-base",
-    min: 0.5,
+    min: 0.1,
+    max: 2,
+    step: 0.1,
+    value: 1
+  });
+
+  const brushLengthRangeControl = createSliderControl({
+    label: "Length Range",
+    id: "brush-length-range",
+    min: 1,
+    max: 30,
+    step: 0.1,
+    value: 2
+  });
+
+  const brushVibrationControl = createSliderControl({
+    label: "Vibration",
+    id: "brush-vibration",
+    min: 0,
     max: 5,
     step: 0.1,
-    value: 1.5
+    value: 1
   });
 
   const brushLengthTopMultiplierControl = createSliderControl({
-    label: "Top Brush Multiplier",
+    label: "Top/Bottom Length Multiplier",
     id: "brush-length-top-multiplier",
     min: 0.5,
-    max: 2,
+    max: 8,
     step: 0.05,
     value: 0.8
   });
@@ -63,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   const areaNoiseScaleControl = createSliderControl({
-    label: "Area Noise Scale",
+    label: "Noise Scale",
     id: "area-noise-scale",
     min: 0.001,
     max: 0.05,
@@ -72,12 +90,21 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   const angleNoiseScaleControl = createSliderControl({
-    label: "Angle Noise Scale",
+    label: "Noise Scale",
     id: "angle-noise-scale",
     min: 0.001,
     max: 0.1,
     step: 0.001,
     value: 0.01
+  });
+
+  const lengthNoiseScaleControl = createSliderControl({
+    label: "Noise Scale",
+    id: "length-noise-scale",
+    min: 0.001,
+    max: 0.05,
+    step: 0.001,
+    value: 0.005
   });
 
   const areaNoiseMultiplierControl = createSliderControl({
@@ -108,10 +135,13 @@ document.addEventListener("DOMContentLoaded", () => {
     angleNoiseMultiplierControl.container
   ]);
 
-  const brushSection = createSection("Brush", [
+  const brushSection = createSection("Brush Areas", [
+    lengthNoiseScaleControl.container,
     brushLengthBaseControl.container,
-    brushWeightControl.container,
-    brushLengthTopMultiplierControl.container
+    brushLengthRangeControl.container,
+    brushLengthTopMultiplierControl.container,
+    brushVibrationControl.container,
+    brushWeightControl.container
   ]);
 
   const generateButton = document.createElement("button");
@@ -137,10 +167,13 @@ document.addEventListener("DOMContentLoaded", () => {
     randomizeSliders([
       tileControl,
       brushLengthBaseControl,
+      brushLengthRangeControl,
+      brushVibrationControl,
       brushLengthTopMultiplierControl,
       brushWeightControl,
       areaNoiseScaleControl,
       angleNoiseScaleControl,
+      lengthNoiseScaleControl,
       areaNoiseMultiplierControl,
       angleNoiseMultiplierControl
     ]);
@@ -198,10 +231,13 @@ function triggerGenerate(paramsOverride) {
   const params = paramsOverride || {
     tiles: parseInt(document.getElementById("tiles-slider").value, 10),
     brushLengthBase: parseFloat(document.getElementById("brush-length-base").value),
+    brushLengthRange: parseFloat(document.getElementById("brush-length-range").value),
+    brushVibration: parseFloat(document.getElementById("brush-vibration").value),
     brushLengthTopMultiplier: parseFloat(document.getElementById("brush-length-top-multiplier").value),
     brushWeight: parseFloat(document.getElementById("brush-weight").value),
     areaNoiseScale: parseFloat(document.getElementById("area-noise-scale").value),
     angleNoiseScale: parseFloat(document.getElementById("angle-noise-scale").value),
+    brushLengthNoiseScale: parseFloat(document.getElementById("length-noise-scale").value),
     areaNoiseMultiplier: parseFloat(document.getElementById("area-noise-multiplier").value),
     angleNoiseMultiplier: parseFloat(document.getElementById("angle-noise-multiplier").value),
     showTiles: document.getElementById("show-tiles").checked,
@@ -223,6 +259,52 @@ function loadDoeSelection() {
     console.warn("Failed to parse doeSelection", e);
     return null;
   }
+}
+
+function setSliderValue(id, value) {
+  if (typeof value !== "number") return;
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.value = value;
+  const valueEl = input.previousElementSibling && input.previousElementSibling.querySelector(".control-value");
+  if (valueEl) valueEl.textContent = value;
+}
+
+function setCheckboxValue(id, value) {
+  if (typeof value !== "boolean") return;
+  const input = document.getElementById(id);
+  if (input) input.checked = value;
+}
+
+function applyParamsToControls(params) {
+  if (!params || typeof params !== "object") return;
+  const hasBase = typeof params.brushLengthBase === "number";
+  const hasRange = typeof params.brushLengthRange === "number";
+  let baseLen = hasBase ? params.brushLengthBase : undefined;
+  let rangeLen = hasRange ? params.brushLengthRange : undefined;
+  // Legacy support: derive base/range from min/max if provided
+  if (!hasBase && !hasRange && typeof params.brushLengthMin === "number" && typeof params.brushLengthMax === "number") {
+    const minVal = params.brushLengthMin;
+    const maxVal = params.brushLengthMax;
+    if (minVal > 0 && maxVal > 0) {
+      baseLen = Math.sqrt(minVal * maxVal);
+      rangeLen = Math.max(1, maxVal / Math.max(minVal, 1e-6));
+    }
+  }
+  setSliderValue("brush-length-base", baseLen);
+  setSliderValue("brush-length-range", rangeLen);
+  setSliderValue("tiles-slider", params.tiles);
+  setSliderValue("brush-length-top-multiplier", params.brushLengthTopMultiplier);
+  setSliderValue("brush-weight", params.brushWeight);
+  setSliderValue("brush-vibration", params.brushVibration);
+  setSliderValue("area-noise-scale", params.areaNoiseScale);
+  setSliderValue("angle-noise-scale", params.angleNoiseScale);
+  setSliderValue("length-noise-scale", params.brushLengthNoiseScale);
+  setSliderValue("area-noise-multiplier", params.areaNoiseMultiplier);
+  setSliderValue("angle-noise-multiplier", params.angleNoiseMultiplier);
+  setCheckboxValue("show-tiles", params.showTiles);
+  setCheckboxValue("show-bottom-layer", params.showBottomLayer);
+  setCheckboxValue("show-top-layer", params.showTopLayer);
 }
 
 function createSection(title, controls) {

@@ -17,6 +17,7 @@ let color_low = "#ff33d2";
 
 // Brush settings
 let brush_length_base = 1.5;
+let brush_length_range = 2;
 let brush_length_top_multiplier = 0.8;
 let brush_weight = 5;
 let brush_vibration = 1;
@@ -30,6 +31,7 @@ let area_noise_scale = 0.005;           // bottom layer noise scale
 let angle_noise_scale = 0.01;           // bottom layer field noise scale
 let area_noise_multiplier = 2.0;        // top vs bottom noise multiplier
 let angle_noise_multiplier = 2.0;       // top vs bottom angle multiplier
+let brush_length_noise_scale = 0.005;   // length noise scale (shared)
 
 // Draw toggles
 let show_tiles = false;
@@ -39,6 +41,7 @@ let show_top_layer = true;
 // Areas
 let bottom_layer_map;
 let top_layer_map;
+let brush_length_map;
 
 // Progressive rendering state
 let render_queue = [];
@@ -90,7 +93,7 @@ function noise_gen(x, y, t, noiseScale = 0.01) {
   return noise(noiseScale * x, noiseScale * y, noiseScale * t);
 }
 
-// Generate area
+// Generate color areas
 function area_gen(w, h, t, noiseScale) {
   const areas = Array.from({ length: height }, () => Array.from({ length: width }, () => 0));
   for (let x = 0; x < w; x++) {
@@ -107,7 +110,26 @@ function area_gen(w, h, t, noiseScale) {
   return areas;
 }
 
-// Generate brush field
+// Generate brush length areas
+function length_gen(w, h, t, noiseScale) {
+  const lengths = Array.from({ length: w }, () => Array.from({ length: h }, () => 0));
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) {
+      lengths[x][y] = noise_gen(x, y, t, noiseScale);
+    }
+  }
+  return lengths;
+}
+
+function getBrushLengthBounds() {
+  const base = Math.max(0, brush_length_base);
+  const range = Math.max(1, brush_length_range);
+  const min = base / range;
+  const max = base * range;
+  return { min, max };
+}
+
+// Generate brush areas
 function brush_field(name, noiseScale, angle_start, angle_end) {
   brush.addField(name, function (t, field) {
     const cols = field.length;
@@ -127,13 +149,14 @@ function brush_field(name, noiseScale, angle_start, angle_end) {
 
 function buildRenderQueue() {
   const queue = [];
+  const { min: length_min, max: length_max } = getBrushLengthBounds();
   for (let y = 0; y < tiles; y++) {
     for (let x = 0; x < tiles; x++) {
       const start_x = random(x * tile_width, x * tile_width + tile_width);
       const start_y = random(y * tile_width, y * tile_width + tile_width);
       const bottom_area_value = bottom_layer_map[int(x * tile_width)][int(y * tile_width)];
       const top_area_value = top_layer_map[int(x * tile_width)][int(y * tile_width)];
-      const top_length_factor = random(0.5, 2);
+      const length_noise_value = brush_length_map[int(x * tile_width)][int(y * tile_width)];
       queue.push({
         x,
         y,
@@ -141,7 +164,9 @@ function buildRenderQueue() {
         start_y,
         bottom_area_value,
         top_area_value,
-        top_length_factor
+        length_noise_value,
+        length_min,
+        length_max
       });
     }
   }
@@ -149,7 +174,8 @@ function buildRenderQueue() {
 }
 
 function drawTile(job) {
-  const { x, y, start_x, start_y, bottom_area_value, top_area_value, top_length_factor } = job;
+  const { x, y, start_x, start_y, bottom_area_value, top_area_value, length_noise_value, length_min, length_max } = job;
+  const base_brush_length = Math.max(0, map(length_noise_value, 0, 1, length_min, length_max)) * tile_width;
 
   if (show_tiles) {
     push();
@@ -167,7 +193,7 @@ function drawTile(job) {
     else { brush.stroke(bg_color); brush.pick("b2"); }
 
     brush.field("bottomFlowField");
-    brush.flowLine(start_x - tile_width, start_y, brush_length_base * tile_width, 0);
+    brush.flowLine(start_x - tile_width, start_y, base_brush_length, 0);
   }
 
   if (show_top_layer) {
@@ -177,7 +203,7 @@ function drawTile(job) {
     else { brush.stroke(bg_color); brush.pick("b1"); }
 
     brush.field("topFlowField");
-    const brush_length = top_length_factor * brush_length_base * brush_length_top_multiplier * tile_width;
+    const brush_length = base_brush_length * brush_length_top_multiplier;
     brush.flowLine(start_x - tile_width, start_y, brush_length, 0);
   }
 }
@@ -212,11 +238,14 @@ function generateSketch() {
     // Tile width
     tile_width = width / tiles;
 
-    // Generate main areas
+    // Generate bottom areas
     bottom_layer_map = area_gen(width, height, 0, area_noise_scale);
 
-    // Generate sub areas
+    // Generate top areas
     top_layer_map = area_gen(width, height, 0, area_noise_scale * area_noise_multiplier);
+
+    // Generate brush length area (shared across layers)
+    brush_length_map = length_gen(width, height, 0, brush_length_noise_scale);
 
     // Prepare rendering queue to draw progressively
     render_queue = buildRenderQueue();
@@ -230,20 +259,42 @@ function applyParams(params = {}) {
   if (typeof params.tiles === "number") {
     tiles = params.tiles;
   }
-  if (typeof params.brushLengthBase === "number") {
+  const hasNewBase = typeof params.brushLengthBase === "number";
+  const hasNewRange = typeof params.brushLengthRange === "number";
+  if (hasNewBase) {
     brush_length_base = params.brushLengthBase;
   }
+  if (hasNewRange) {
+    brush_length_range = params.brushLengthRange;
+  }
+  // Legacy min/max support: derive base and range if new values not provided
+  if (!hasNewBase && !hasNewRange && typeof params.brushLengthMin === "number" && typeof params.brushLengthMax === "number") {
+    const minVal = params.brushLengthMin;
+    const maxVal = params.brushLengthMax;
+    if (minVal > 0 && maxVal > 0) {
+      brush_length_base = Math.sqrt(minVal * maxVal);
+      brush_length_range = Math.max(1, maxVal / Math.max(minVal, 1e-6));
+    }
+  }
+  brush_length_base = Math.max(0, brush_length_base);
+  brush_length_range = Math.max(1, brush_length_range);
   if (typeof params.brushLengthTopMultiplier === "number") {
     brush_length_top_multiplier = params.brushLengthTopMultiplier;
   }
   if (typeof params.brushWeight === "number") {
     brush_weight = params.brushWeight;
   }
+  if (typeof params.brushVibration === "number") {
+    brush_vibration = params.brushVibration;
+  }
   if (typeof params.areaNoiseScale === "number") {
     area_noise_scale = params.areaNoiseScale;
   }
   if (typeof params.angleNoiseScale === "number") {
     angle_noise_scale = params.angleNoiseScale;
+  }
+  if (typeof params.brushLengthNoiseScale === "number") {
+    brush_length_noise_scale = params.brushLengthNoiseScale;
   }
   if (typeof params.areaNoiseMultiplier === "number") {
     area_noise_multiplier = params.areaNoiseMultiplier;
@@ -286,7 +337,6 @@ function setup() {
 
 
 function draw() {
-  // Ensure coordinate system stays anchored to top-left for WEBGL each frame
   resetMatrix();
   translate(-width / 2, -height / 2);
 
