@@ -262,6 +262,7 @@ function randomizeSliders(controls) {
     const randStep = Math.floor(Math.random() * (steps + 1));
     const value = Number((min + randStep * step).toFixed(4));
     control.input.value = value;
+    updateRangeFill(control.input);
     if (control.valueEl) {
       control.valueEl.textContent = value;
     }
@@ -310,6 +311,7 @@ function setSliderValue(id, value) {
   const input = document.getElementById(id);
   if (!input) return;
   input.value = value;
+  updateRangeFill(input);
   const valueEl = input.previousElementSibling && input.previousElementSibling.querySelector(".control-value");
   if (valueEl) valueEl.textContent = value;
 }
@@ -394,7 +396,10 @@ function createSliderControl({ label, id, min, max, step, value }) {
   input.value = value;
   input.addEventListener("input", () => {
     valueEl.textContent = input.value;
+    updateRangeFill(input);
   });
+
+  updateRangeFill(input);
 
   container.appendChild(row);
   container.appendChild(input);
@@ -419,4 +424,12 @@ function createCheckboxControl({ label, id, checked }) {
   container.appendChild(labelEl);
 
   return { container, input };
+}
+
+function updateRangeFill(input) {
+  const min = parseFloat(input.min) || 0;
+  const max = parseFloat(input.max) || 1;
+  const val = parseFloat(input.value);
+  const percent = ((val - min) / (max - min)) * 100;
+  input.style.setProperty("--val", `${percent}%`);
 }
