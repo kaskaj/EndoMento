@@ -2,20 +2,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const panel = document.createElement("div");
   panel.id = "controls-panel";
 
-  const tileCheckbox = createCheckboxControl({
-    label: "Tiles",
-    id: "show-tiles",
-    checked: false
-  });
-
   const bottomCheckbox = createCheckboxControl({
-    label: "Bottom Layer",
+    label: "Bottom",
     id: "show-bottom-layer",
     checked: true
   });
 
   const topCheckbox = createCheckboxControl({
-    label: "Top Layer",
+    label: "Top",
     id: "show-top-layer",
     checked: true
   });
@@ -23,20 +17,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const syncVisibility = () => {
     if (typeof window.updateVisibility === "function") {
       window.updateVisibility({
-        showTiles: tileCheckbox.input.checked,
         showBottomLayer: bottomCheckbox.input.checked,
         showTopLayer: topCheckbox.input.checked
       });
     }
   };
 
-  [tileCheckbox.input, bottomCheckbox.input, topCheckbox.input].forEach(input => {
+  [bottomCheckbox.input, topCheckbox.input].forEach(input => {
     input.addEventListener("change", syncVisibility);
   });
 
   const toggleRow = document.createElement("div");
   toggleRow.className = "toggle-row";
-  toggleRow.appendChild(tileCheckbox.container);
   toggleRow.appendChild(bottomCheckbox.container);
   toggleRow.appendChild(topCheckbox.container);
 
@@ -187,6 +179,29 @@ document.addEventListener("DOMContentLoaded", () => {
     brushWeightControl.container
   ]);
 
+  const invertMaskCheckbox = createCheckboxControl({
+    label: "Invert image",
+    id: "invert-mask",
+    checked: false
+  });
+  invertMaskCheckbox.input.addEventListener("change", () => {
+    if (typeof window.updateVisibility === "function") {
+      window.updateVisibility({ invertMask: invertMaskCheckbox.input.checked });
+    }
+  });
+  const hideWhiteCheckbox = createCheckboxControl({
+    label: "Isolate image",
+    id: "hide-white",
+    checked: false
+  });
+  hideWhiteCheckbox.input.addEventListener("change", () => {
+    if (typeof window.updateVisibility === "function") {
+      window.updateVisibility({ hideWhite: hideWhiteCheckbox.input.checked });
+    }
+  });
+  toggleRow.appendChild(invertMaskCheckbox.container);
+  toggleRow.appendChild(hideWhiteCheckbox.container);
+
   const layerSection = createSection("Layer control", [
     toggleRow
   ]);
@@ -229,10 +244,36 @@ document.addEventListener("DOMContentLoaded", () => {
     triggerGenerate();
   });
 
+  const uploadIconButton = document.createElement("button");
+  uploadIconButton.type = "button";
+  uploadIconButton.textContent = "Upload";
+
+  const uploadInput = document.createElement("input");
+  uploadInput.type = "file";
+  uploadInput.accept = "image/*";
+  uploadInput.style.display = "none";
+
+  uploadIconButton.addEventListener("click", () => {
+    uploadInput.value = "";
+    uploadInput.click();
+  });
+
+  uploadInput.addEventListener("change", () => {
+    const [file] = uploadInput.files || [];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    if (typeof window.handleUploadedImage === "function") {
+      window.handleUploadedImage(objectUrl, () => URL.revokeObjectURL(objectUrl));
+    } else {
+      URL.revokeObjectURL(objectUrl);
+    }
+  });
+
   const buttonRow = document.createElement("div");
   buttonRow.className = "button-row";
   buttonRow.appendChild(generateButton);
   buttonRow.appendChild(randomizeButton);
+  buttonRow.appendChild(uploadIconButton);
   buttonRow.appendChild(saveButton);
   panel.appendChild(buttonRow);
   panel.appendChild(pixelDensityControl.container);
@@ -243,6 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
   panel.appendChild(layerSection);
 
   document.body.appendChild(panel);
+  document.body.appendChild(uploadInput);
 
   // Apply DoE selection if present
   const saved = loadDoeSelection();
@@ -285,7 +327,6 @@ function triggerGenerate(paramsOverride) {
     brushLengthNoiseScale: parseFloat(document.getElementById("length-noise-scale").value),
     colorNoiseMultiplier: parseFloat(document.getElementById("color-noise-multiplier").value),
     angleNoiseMultiplier: parseFloat(document.getElementById("angle-noise-multiplier").value),
-    showTiles: document.getElementById("show-tiles").checked,
     showBottomLayer: document.getElementById("show-bottom-layer").checked,
     showTopLayer: document.getElementById("show-top-layer").checked
   };
@@ -351,9 +392,10 @@ function applyParamsToControls(params) {
   setSliderValue("length-noise-scale", params.brushLengthNoiseScale);
   setSliderValue("color-noise-multiplier", params.colorNoiseMultiplier);
   setSliderValue("angle-noise-multiplier", params.angleNoiseMultiplier);
-  setCheckboxValue("show-tiles", params.showTiles);
   setCheckboxValue("show-bottom-layer", params.showBottomLayer);
   setCheckboxValue("show-top-layer", params.showTopLayer);
+  setCheckboxValue("invert-mask", params.invertMask);
+  setCheckboxValue("hide-white", params.hideWhite);
 }
 
 function createSection(title, controls) {

@@ -22,7 +22,7 @@ canvas {
 
 #controls-panel {
   order: 2;
-  min-width: 220px;
+  min-width: 264px;
   padding: 12px;
   border: none;
   border-radius: 8px;
@@ -55,7 +55,8 @@ canvas {
   display: flex;
   gap: 10px;
   margin-bottom: 14px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .panel-section {

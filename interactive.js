@@ -37,6 +37,12 @@ let angle_noise_multiplier = 2.0;       // top layer noise scale multiplier
 let show_tiles = false;
 let show_bottom_layer = true;
 let show_top_layer = true;
+let invert_mask = false;
+let hide_white_mask = false;
+
+// Uploaded mask
+let overlay_img = null;
+let tile_visibility_mask = null;
 
 // Area maps
 let bottom_layer_map;
@@ -120,6 +126,34 @@ function length_gen(w, h, t, noiseScale) {
   return lengths;
 }
 
+// Detect black and white image areas
+function buildTileVisibilityMask() {
+  if (!overlay_img) return null;
+  const mask = Array.from({ length: tiles }, () => Array.from({ length: tiles }, () => true));
+  for (let x = 0; x < tiles; x++) {
+    for (let y = 0; y < tiles; y++) {
+      const cpx = overlay_img.get(x * tile_width, y * tile_width);
+      const b = map(brightness(cpx), 0, 100, 0, 1);
+      mask[x][y] = b < 0.5;
+    }
+  }
+  return mask;
+}
+
+// Handle uploaded image
+function handleUploadedImage(src, doneCb) {
+  loadImage(src, img => {
+    overlay_img = img;
+    overlay_img.resize(width, 0);
+    tile_visibility_mask = buildTileVisibilityMask();
+    regenerateSketch();
+    if (typeof doneCb === "function") doneCb();
+  }, err => {
+    console.error("Failed to load image", err);
+    if (typeof doneCb === "function") doneCb();
+  });
+}
+
 // Get minimum and maximum brush length
 function getBrushLengthBounds() {
   const base = Math.max(0, brush_length_base);
@@ -176,7 +210,39 @@ function buildRenderQueue() {
 
 function drawTile(job) {
   const { x, y, start_x, start_y, bottom_area_value, top_area_value, length_noise_value, length_min, length_max } = job;
+
   const base_brush_length = Math.max(0, map(length_noise_value, 0, 1, length_min, length_max)) * tile_width;
+
+  const maskVal = tile_visibility_mask ? tile_visibility_mask[x][y] : null;
+  const is_black = maskVal === true;
+  const is_white = maskVal === false;
+
+  let allow_bottom_layer = show_bottom_layer;
+  let allow_top_layer = show_top_layer;
+
+  if (maskVal !== null) {
+    if (hide_white_mask) {
+      // Hide white areas entirely; invert flips the behavior
+      if (invert_mask) {
+        // white -> both layers; black -> none
+        allow_bottom_layer = is_white ? allow_bottom_layer : false;
+        allow_top_layer = is_white ? allow_top_layer : false;
+      } else {
+        // black -> both layers; white -> none
+        allow_bottom_layer = is_black ? allow_bottom_layer : false;
+        allow_top_layer = is_black ? allow_top_layer : false;
+      }
+    } else {
+      // Normal behavior
+      if (invert_mask) {
+        // black -> bottom only; white -> both
+        allow_top_layer = is_white ? allow_top_layer : false;
+      } else {
+        // black -> both; white -> bottom only
+        allow_top_layer = is_black ? allow_top_layer : false;
+      }
+    }
+  }
 
   if (show_tiles) {
     push();
@@ -187,7 +253,11 @@ function drawTile(job) {
     pop();
   }
 
-  if (show_bottom_layer) {
+  if (!allow_bottom_layer && !allow_top_layer) {
+    return;
+  }
+
+  if (allow_bottom_layer) {
     if (bottom_area_value === 1) { brush.stroke(color_low); brush.pick("b1"); }
     else if (bottom_area_value === 2) { brush.stroke(color_high); brush.pick("b2"); }
     else { brush.stroke(bg_color); brush.pick("b2"); }
@@ -196,7 +266,7 @@ function drawTile(job) {
     brush.flowLine(start_x - tile_width, start_y, base_brush_length, 0);
   }
 
-  if (show_top_layer) {
+  if (allow_top_layer) {
     if (top_area_value === 1) { brush.stroke(color_high); brush.pick("b2"); }
     else if (top_area_value === 2) { brush.stroke(color_low); brush.pick("b1"); }
     else { brush.stroke(bg_color); brush.pick("b1"); }
@@ -222,7 +292,7 @@ function reseedNoise() {
   randomSeed(seed + 1);
 }
 
-// Blank canvas (show before rendering)
+// Blank canvas (Show before rendering)
 function renderBlankCanvas() {
   resetMatrix();
   translate(-width / 2, -height / 2);
@@ -231,30 +301,33 @@ function renderBlankCanvas() {
 
 function generateSketch() {
 
-    resetMatrix();
-    translate(-width / 2, -height / 2);
-    background(bg_color);
+  resetMatrix();
+  translate(-width / 2, -height / 2);
+  background(bg_color);
 
-    // Tile width
-    tile_width = width / tiles;
+  // Tile width
+  tile_width = width / tiles;
 
-    // Generate bottom areas
-    bottom_layer_map = area_gen(width, height, 0, color_noise_scale);
+  tile_visibility_mask = overlay_img ? buildTileVisibilityMask() : null;
 
-    // Generate top areas
-    top_layer_map = area_gen(width, height, 0, color_noise_scale * color_noise_multiplier);
+  // Generate bottom areas
+  bottom_layer_map = area_gen(width, height, 0, color_noise_scale);
 
-    // Generate brush length area (shared across layers)
-    brush_length_map = length_gen(width, height, 0, brush_length_noise_scale);
+  // Generate top areas
+  top_layer_map = area_gen(width, height, 0, color_noise_scale * color_noise_multiplier);
 
-    // Prepare rendering queue to draw progressively
-    render_queue = buildRenderQueue();
-    render_index = 0;
-    const total_tiles = render_queue.length;
-    tiles_per_frame = Math.max(1, Math.floor(total_tiles / 80));
-    is_rendering = true;
+  // Generate brush length area (shared across layers)
+  brush_length_map = length_gen(width, height, 0, brush_length_noise_scale);
+
+  // Prepare rendering queue to draw progressively
+  render_queue = buildRenderQueue();
+  render_index = 0;
+  const total_tiles = render_queue.length;
+  tiles_per_frame = Math.max(1, Math.floor(total_tiles / 80));
+  is_rendering = true;
 }
 
+// Apply parameters
 function applyParams(params = {}) {
   if (typeof params.tiles === "number") {
     tiles = params.tiles;
@@ -314,6 +387,15 @@ function applyParams(params = {}) {
   if (typeof params.showTopLayer === "boolean") {
     show_top_layer = params.showTopLayer;
   }
+  if (typeof params.invertMask === "boolean") {
+    invert_mask = params.invertMask;
+  }
+  if (typeof params.hideWhite === "boolean") {
+    hide_white_mask = params.hideWhite;
+  }
+  if (typeof params.hideWhite === "boolean") {
+    hide_white_mask = params.hideWhite;
+  }
   if (typeof params.secHigh === "number") {
     sec_high = constrain(params.secHigh, 0.5, 1);
   }
@@ -324,6 +406,7 @@ function applyParams(params = {}) {
   initializeBrushFields();
 }
 
+// Regenerate sketch (Generate)
 function regenerateSketch(params = {}) {
   applyParams(params);
   pixelDensity(pixel_density);
@@ -333,6 +416,7 @@ function regenerateSketch(params = {}) {
 
 // Expose regenerate for controls
 window.regenerateSketch = regenerateSketch;
+window.handleUploadedImage = handleUploadedImage;
 
 // Update layer visibility without changing the generated pattern
 function updateVisibility(params = {}) {
@@ -344,6 +428,12 @@ function updateVisibility(params = {}) {
   }
   if (typeof params.showTopLayer === "boolean") {
     show_top_layer = params.showTopLayer;
+  }
+  if (typeof params.invertMask === "boolean") {
+    invert_mask = params.invertMask;
+  }
+  if (typeof params.hideWhite === "boolean") {
+    hide_white_mask = params.hideWhite;
   }
 
   // Re-render the existing queue so the same pattern is shown with new visibility
