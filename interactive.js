@@ -34,7 +34,6 @@ let color_noise_multiplier = 2.0;       // top layer noise scale multiplier
 let angle_noise_multiplier = 2.0;       // top layer noise scale multiplier
 
 // Draw toggles
-let show_tiles = false;
 let show_bottom_layer = true;
 let show_top_layer = true;
 let invert_mask = false;
@@ -244,15 +243,6 @@ function drawTile(job) {
     }
   }
 
-  if (show_tiles) {
-    push();
-    noFill();
-    stroke(220);
-    strokeWeight(1);
-    rect(x * tile_width, y * tile_width, tile_width, tile_width);
-    pop();
-  }
-
   if (!allow_bottom_layer && !allow_top_layer) {
     return;
   }
@@ -414,9 +404,10 @@ function regenerateSketch(params = {}) {
   generateSketch();
 }
 
-// Expose regenerate for controls
+// Expose for controls
 window.regenerateSketch = regenerateSketch;
 window.handleUploadedImage = handleUploadedImage;
+window.updateVisibility = updateVisibility;
 
 // Update layer visibility without changing the generated pattern
 function updateVisibility(params = {}) {
@@ -444,9 +435,7 @@ function updateVisibility(params = {}) {
   is_rendering = true;
 }
 
-// Expose visibility update for controls
-window.updateVisibility = updateVisibility;
-
+// Setup
 function setup() {
   // Set canvas
   pixelDensity(pixel_density);
@@ -459,7 +448,7 @@ function setup() {
   setTimeout(generateSketch, 0);
 }
 
-
+// Draw
 function draw() {
   resetMatrix();
   translate(-width / 2, -height / 2);

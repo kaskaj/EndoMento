@@ -286,6 +286,18 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.appendChild(panel);
   document.body.appendChild(uploadInput);
 
+  const instructions = document.createElement("div");
+  instructions.id = "instructions";
+  instructions.innerHTML = `
+    <ul>
+      <li><strong>Generate</strong> → Generate a new pattern with the set parameters</li>
+      <li><strong>Randomize</strong> → Randomize the parameters and get a new pattern</li>
+      <li><strong>Upload</strong> → Upload an image mask (ideally rectangular, non-transparent). You can change the mask behavior using toggles in the Layer control section</li>
+      <li><strong>Save</strong> → Save the current pattern (be patient, it might take a while)</li>
+    </ul>
+  `;
+  document.body.appendChild(instructions);
+
   // Apply DoE selection if present
   const saved = loadDoeSelection();
   if (saved) {
