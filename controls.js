@@ -50,6 +50,11 @@ document.addEventListener("DOMContentLoaded", () => {
     value: 2
   });
 
+  const densitySection = createSection("Density", [
+    pixelDensityControl.container,
+    tileControl.container
+  ]);
+
   const brushLengthBaseControl = createSliderControl({
     label: "Base Length",
     id: "brush-length-base",
@@ -202,9 +207,11 @@ document.addEventListener("DOMContentLoaded", () => {
   toggleRow.appendChild(invertMaskCheckbox.container);
   toggleRow.appendChild(hideWhiteCheckbox.container);
 
-  const layerSection = createSection("Layer control", [
-    toggleRow
-  ]);
+  const layerSection = createSection(
+    "Layer control",
+    [toggleRow],
+    { collapsed: false }
+  );
 
   const generateButton = document.createElement("button");
   generateButton.type = "button";
@@ -275,28 +282,28 @@ document.addEventListener("DOMContentLoaded", () => {
   buttonRow.appendChild(randomizeButton);
   buttonRow.appendChild(uploadIconButton);
   buttonRow.appendChild(saveButton);
-  panel.appendChild(buttonRow);
-  panel.appendChild(pixelDensityControl.container);
-  panel.appendChild(tileControl.container);
-  panel.appendChild(areaNoiseSection);
-  panel.appendChild(angleNoiseSection);
-  panel.appendChild(brushSection);
-  panel.appendChild(layerSection);
-
-  document.body.appendChild(panel);
-  document.body.appendChild(uploadInput);
 
   const instructions = document.createElement("div");
   instructions.id = "instructions";
   instructions.innerHTML = `
-    <ul>
-      <li><strong>Generate</strong> → Generate a new pattern with the set parameters</li>
-      <li><strong>Randomize</strong> → Randomize the parameters and get a new pattern</li>
-      <li><strong>Upload</strong> → Upload an image mask (ideally rectangular, non-transparent). You can change the mask behavior using toggles in the Layer control section</li>
-      <li><strong>Save</strong> → Save the current pattern (be patient, it might take a while)</li>
-    </ul>
+    <p>
+      ♥&nbsp<b>Generate:</b> Generate a new pattern with the set parameters
+      ♥&nbsp<b>Randomize:</b> Randomize the parameters and get a new pattern
+      ♥&nbsp<b>Upload:</b> Upload an image mask (square (1:1), non-transparent). You can change the mask behavior using toggles in the Layer control section
+      ♥&nbsp<b>Save:</b> Save the current pattern
+    </p>
   `;
-  document.body.appendChild(instructions);
+
+  panel.appendChild(buttonRow);
+  panel.appendChild(instructions);
+  panel.appendChild(layerSection);
+  panel.appendChild(densitySection);
+  panel.appendChild(areaNoiseSection);
+  panel.appendChild(angleNoiseSection);
+  panel.appendChild(brushSection);
+
+  document.body.appendChild(panel);
+  document.body.appendChild(uploadInput);
 
   // Apply DoE selection if present
   const saved = loadDoeSelection();
@@ -410,15 +417,38 @@ function applyParamsToControls(params) {
   setCheckboxValue("hide-white", params.hideWhite);
 }
 
-function createSection(title, controls) {
+function createSection(title, controls, { collapsed = true } = {}) {
   const container = document.createElement("div");
   container.className = "panel-section";
+  if (collapsed) {
+    container.classList.add("collapsed");
+  }
 
   const heading = document.createElement("h3");
   heading.textContent = title;
-  container.appendChild(heading);
+  heading.setAttribute("role", "button");
+  heading.setAttribute("tabindex", "0");
+  heading.setAttribute("aria-expanded", String(!collapsed));
 
-  controls.forEach(control => container.appendChild(control));
+  const body = document.createElement("div");
+  body.className = "section-body";
+  controls.forEach(control => body.appendChild(control));
+
+  const toggle = () => {
+    const isCollapsed = container.classList.toggle("collapsed");
+    heading.setAttribute("aria-expanded", String(!isCollapsed));
+  };
+
+  heading.addEventListener("click", toggle);
+  heading.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggle();
+    }
+  });
+
+  container.appendChild(heading);
+  container.appendChild(body);
 
   return container;
 }
