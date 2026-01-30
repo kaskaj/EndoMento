@@ -224,8 +224,9 @@ document.addEventListener("DOMContentLoaded", () => {
   saveButton.type = "button";
   saveButton.textContent = "Save";
   saveButton.addEventListener("click", () => {
-    if (typeof window.saveFrames === "function" && typeof window.canv !== "undefined") {
-      window.saveFrames(canv, "endo.png");
+    // Save a single frame with a stable name to avoid slow multi-frame export
+    if (typeof window.saveCanvas === "function" && typeof window.canv !== "undefined") {
+      window.saveCanvas(canv, "pattern", "png");
     }
   });
 
