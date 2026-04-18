@@ -15,12 +15,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   const syncVisibility = () => {
-    if (typeof window.updateVisibility === "function") {
-      window.updateVisibility({
-        showBottomLayer: bottomCheckbox.input.checked,
-        showTopLayer: topCheckbox.input.checked
-      });
-    }
+    callUpdateVisibility({
+      showBottomLayer: bottomCheckbox.input.checked,
+      showTopLayer: topCheckbox.input.checked
+    });
   };
 
   [bottomCheckbox.input, topCheckbox.input].forEach(input => {
@@ -189,21 +187,21 @@ document.addEventListener("DOMContentLoaded", () => {
     id: "invert-mask",
     checked: false
   });
+
   invertMaskCheckbox.input.addEventListener("change", () => {
-    if (typeof window.updateVisibility === "function") {
-      window.updateVisibility({ invertMask: invertMaskCheckbox.input.checked });
-    }
+    callUpdateVisibility({ invertMask: invertMaskCheckbox.input.checked });
   });
+
   const hideWhiteCheckbox = createCheckboxControl({
     label: "Isolate image",
     id: "hide-white",
     checked: false
   });
+
   hideWhiteCheckbox.input.addEventListener("change", () => {
-    if (typeof window.updateVisibility === "function") {
-      window.updateVisibility({ hideWhite: hideWhiteCheckbox.input.checked });
-    }
+    callUpdateVisibility({ hideWhite: hideWhiteCheckbox.input.checked });
   });
+
   toggleRow.appendChild(invertMaskCheckbox.container);
   toggleRow.appendChild(hideWhiteCheckbox.container);
 
@@ -331,25 +329,68 @@ function randomizeSliders(controls) {
   });
 }
 
+const sliderParamBindings = [
+  { id: "tiles-slider", keys: ["tiles"], parse: (value) => parseInt(value, 10) },
+  { id: "pixel-density", keys: ["pixelDensityValue"], parse: (value) => parseInt(value, 10) },
+  { id: "brush-length-base", keys: ["brushLengthBase"], parse: parseFloat },
+  { id: "brush-length-range", keys: ["brushLengthRange"], parse: parseFloat },
+  { id: "brush-vibration", keys: ["brushVibration"], parse: parseFloat },
+  { id: "brush-length-top-multiplier", keys: ["brushLengthTopMultiplier"], parse: parseFloat },
+  { id: "brush-weight", keys: ["brushWeight"], parse: parseFloat },
+  { id: "color_noise_scale", keys: ["colorNoiseScale"], parse: parseFloat },
+  { id: "color-sec-low", keys: ["secLow"], parse: parseFloat },
+  { id: "color-sec-high", keys: ["secHigh"], parse: parseFloat },
+  { id: "angle-noise-scale", keys: ["angleNoiseScale"], parse: parseFloat },
+  { id: "length-noise-scale", keys: ["brushLengthNoiseScale"], parse: parseFloat },
+  { id: "color-noise-multiplier", keys: ["colorNoiseMultiplier"], parse: parseFloat },
+  { id: "angle-noise-multiplier", keys: ["angleNoiseMultiplier"], parse: parseFloat }
+];
+
+const checkboxParamBindings = [
+  { id: "show-bottom-layer", keys: ["showBottomLayer"] },
+  { id: "show-top-layer", keys: ["showTopLayer"] },
+  { id: "invert-mask", keys: ["invertMask"] },
+  { id: "hide-white", keys: ["hideWhite"] }
+];
+
+function callUpdateVisibility(params) {
+  if (typeof window.updateVisibility === "function") {
+    window.updateVisibility(params);
+  }
+}
+
+function firstValueByType(params, keys, type) {
+  for (const key of keys) {
+    if (typeof params[key] === type) return params[key];
+  }
+  return undefined;
+}
+
+function collectParamsFromControls() {
+  const params = {};
+  sliderParamBindings.forEach(({ id, keys, parse }) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    params[keys[0]] = parse(input.value);
+  });
+  checkboxParamBindings.forEach(({ id, keys }) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    params[keys[0]] = input.checked;
+  });
+  return params;
+}
+
+function normalizeGenerateParams(params = {}) {
+  const normalized = { ...params };
+  if (typeof normalized.colorNoiseMultiplier !== "number" && typeof normalized.colorNoiseMultiplier === "number") {
+    normalized.colorNoiseMultiplier = normalized.colorNoiseMultiplier;
+  }
+  return normalized;
+}
+
 function triggerGenerate(paramsOverride) {
-  const params = paramsOverride || {
-    tiles: parseInt(document.getElementById("tiles-slider").value, 10),
-    pixelDensityValue: parseInt(document.getElementById("pixel-density").value, 10),
-    brushLengthBase: parseFloat(document.getElementById("brush-length-base").value),
-    brushLengthRange: parseFloat(document.getElementById("brush-length-range").value),
-    brushVibration: parseFloat(document.getElementById("brush-vibration").value),
-    brushLengthTopMultiplier: parseFloat(document.getElementById("brush-length-top-multiplier").value),
-    brushWeight: parseFloat(document.getElementById("brush-weight").value),
-    areaNoiseScale: parseFloat(document.getElementById("color_noise_scale").value),
-    secLow: parseFloat(document.getElementById("color-sec-low").value),
-    secHigh: parseFloat(document.getElementById("color-sec-high").value),
-    angleNoiseScale: parseFloat(document.getElementById("angle-noise-scale").value),
-    brushLengthNoiseScale: parseFloat(document.getElementById("length-noise-scale").value),
-    colorNoiseMultiplier: parseFloat(document.getElementById("color-noise-multiplier").value),
-    angleNoiseMultiplier: parseFloat(document.getElementById("angle-noise-multiplier").value),
-    showBottomLayer: document.getElementById("show-bottom-layer").checked,
-    showTopLayer: document.getElementById("show-top-layer").checked
-  };
+  const params = normalizeGenerateParams(paramsOverride ?? collectParamsFromControls());
 
   if (typeof window.regenerateSketch === "function") {
     window.regenerateSketch(params);
@@ -400,22 +441,13 @@ function applyParamsToControls(params) {
   }
   setSliderValue("brush-length-base", baseLen);
   setSliderValue("brush-length-range", rangeLen);
-  setSliderValue("tiles-slider", params.tiles);
-  setSliderValue("pixel-density", params.pixelDensityValue);
-  setSliderValue("brush-length-top-multiplier", params.brushLengthTopMultiplier);
-  setSliderValue("brush-weight", params.brushWeight);
-  setSliderValue("brush-vibration", params.brushVibration);
-  setSliderValue("color_noise_scale", params.areaNoiseScale);
-  setSliderValue("color-sec-low", params.secLow);
-  setSliderValue("color-sec-high", params.secHigh);
-  setSliderValue("angle-noise-scale", params.angleNoiseScale);
-  setSliderValue("length-noise-scale", params.brushLengthNoiseScale);
-  setSliderValue("color-noise-multiplier", params.colorNoiseMultiplier);
-  setSliderValue("angle-noise-multiplier", params.angleNoiseMultiplier);
-  setCheckboxValue("show-bottom-layer", params.showBottomLayer);
-  setCheckboxValue("show-top-layer", params.showTopLayer);
-  setCheckboxValue("invert-mask", params.invertMask);
-  setCheckboxValue("hide-white", params.hideWhite);
+  sliderParamBindings.forEach(({ id, keys }) => {
+    if (id === "brush-length-base" || id === "brush-length-range") return;
+    setSliderValue(id, firstValueByType(params, keys, "number"));
+  });
+  checkboxParamBindings.forEach(({ id, keys }) => {
+    setCheckboxValue(id, firstValueByType(params, keys, "boolean"));
+  });
 }
 
 function createSection(title, controls, { collapsed = true } = {}) {
